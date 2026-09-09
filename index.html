@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=8d20c29f-3cbf-4883-af33-681721e85acd
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="hosting-provider" content="Netlify">
+<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=8d20c29f-3cbf-4883-af33-681721e85acd">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FinFlow — Dashboard Financeiro</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&amp;family=DM+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root {
+  --blue-vivid:#1E4DFF;
+  --blue-mid:#4F7BFF;
+  --blue-light:#A0B8FF;
+  --blue-glow:rgba(30,77,255,0.25);
+  --bg-light:#eef0f8;
+  --glass-bg:rgba(255,255,255,0.68);
+  --glass-border:rgba(255,255,255,0.85);
+  --glass-shadow:0 6px 32px rgba(30,77,255,0.10),0 1px 6px rgba(30,77,255,0.06);
+  --card-bg:rgba(255,255,255,0.7);
+  --text-dark:#0a1240;
+  --text-mid:#3a4a8a;
+  --text-light:#8090c0;
+  --border-light:rgba(30,77,255,0.08);
+  --input-bg:rgba(255,255,255,0.88);
+  --input-text:#0a1240;
+  --badge-bg:rgba(30,77,255,0.09);
+  --badge-text:var(--blue-vivid);
+  --radius:20px;
+  --radius-sm:14px;
+  --font:'Sora',sans-serif;
+  --mono:'DM Mono',monospace;
+  --tr:0.22s cubic-bezier(.4,0,.2,1);
+  --sidebar:220px;
+}
+
+/* Dark Mode - ajustado para letras escuras em fundos claros */
+body.dark {
+  --bg-light:#0a0e1a;
+  --glass-bg:rgba(18,22,35,0.85);
+  --glass-border:rgba(48,58,85,0.7);
+  --card-bg:rgba(22,26,40,0.8);
+  --text-dark:#eef2ff;
+  --text-mid:#b9c2e6;
+  --text-light:#8f9bb5;
+  --border-light:rgba(255,255,255,0.08);
+  --blue-glow:rgba(79,123,255,0.25);
+  /* Fundos de inputs e badges ficam claros no dark, então texto deve ser escuro */
+  --input-bg:rgba(255,255,255,0.9);
+  --input-text:#0a1240;
+  --badge-bg:rgba(30,77,255,0.15);
+  --badge-text:#1E4DFF;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:var(--font);background:var(--bg-light);color:var(--text-dark);position:relative;transition:background 0.3s ease, color 0.2s;}
+
+/* ========= FUNDO ELEGANTE COM MÚLTIPLOS CÍRCULOS (visível em ambos os modos) ========= */
+.circles-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* Gradiente de fundo suave */
+.bg-gradient {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at 20% 30%, rgba(30,77,255,0.08) 0%, rgba(160,184,255,0.02) 70%);
+}
+body.dark .bg-gradient {
+  background: radial-gradient(ellipse at 20% 30%, rgba(30,77,255,0.12) 0%, rgba(79,123,255,0.03) 70%);
+}
+/* Círculos decorativos - cores fortes para aparecer nos dois modos */
+.circle {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(30,77,255,0.2) 0%, rgba(30,77,255,0.05) 80%);
+  animation: floatCircle 20s infinite alternate ease-in-out;
+}
+body.dark .circle {
+  background: radial-gradient(circle, rgba(79,123,255,0.25) 0%, rgba(30,77,255,0.08) 80%);
+}
+.circle:nth-child(1) { width: 280px; height: 280px; top: -5%; left: -5%; animation-duration: 25s; }
+.circle:nth-child(2) { width: 350px; height: 350px; bottom: -10%; right: -8%; animation-duration: 30s; animation-delay: -5s; }
+.circle:nth-child(3) { width: 180px; height: 180px; top: 40%; left: 15%; animation-duration: 18s; animation-delay: -2s; }
+.circle:nth-child(4) { width: 220px; height: 220px; bottom: 20%; left: 30%; background: radial-gradient(circle, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.02) 80%); animation-duration: 22s; animation-delay: -8s; }
+body.dark .circle:nth-child(4) { background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 80%); }
+.circle:nth-child(5) { width: 150px; height: 150px; top: 15%; right: 12%; background: radial-gradient(circle, rgba(30,77,255,0.18) 0%, rgba(30,77,255,0.04) 80%); animation-duration: 16s; animation-delay: -3s; }
+.circle:nth-child(6) { width: 300px; height: 300px; top: 60%; right: 5%; animation-duration: 28s; animation-delay: -10s; }
+.circle:nth-child(7) { width: 120px; height: 120px; bottom: 5%; right: 25%; background: radial-gradient(circle, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.01) 80%); animation-duration: 14s; animation-delay: -1s; }
+body.dark .circle:nth-child(7) { background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 80%); }
+.circle:nth-child(8) { width: 200px; height: 200px; top: 75%; left: 45%; animation-duration: 24s; animation-delay: -6s; }
+@keyframes floatCircle {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(3%, 2%) scale(1.06); }
+}
+/* Textura sutil */
+.noise-texture {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJmIj48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iLjciIG51bU9jdGF2ZXM9IjMiLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjZikiIG9wYWNpdHk9IjAuMDYiLz48L3N2Zz4=');
+  background-repeat: repeat;
+  pointer-events: none;
+  opacity: 0.25;
+}
+body.dark .noise-texture { opacity: 0.1; }
+
+.app{
+  display:flex;
+  height:100vh;
+  overflow:hidden;
+  position:relative;
+  z-index:2;
+}
+
+/* ─ SIDEBAR ─────────────────────────────────────── */
+.sidebar{
+  width:var(--sidebar);min-width:var(--sidebar);
+  background:var(--glass-bg);
+  backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+  border-right:1px solid var(--glass-border);
+  display:flex;flex-direction:column;
+  padding:20px 14px 16px;z-index:200;overflow:hidden;
+  box-shadow:3px 0 24px rgba(30,77,255,0.06);
+}
+.logo{display:flex;align-items:center;gap:9px;margin-bottom:22px;padding:0 4px;}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--blue-vivid),var(--blue-mid));border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px var(--blue-glow);flex-shrink:0;}
+.logo-icon svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:1.8;}
+.logo-text{font-size:1.1rem;font-weight:700;color:var(--text-dark);letter-spacing:-0.4px;}
+.logo-text span{color:var(--blue-vivid);}
+
+nav{display:flex;flex-direction:column;gap:3px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-light);font-size:0.82rem;font-weight:500;transition:var(--tr);border:1px solid transparent;user-select:none;}
+.ni{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(30,77,255,0.07);transition:var(--tr);}
+.ni svg{width:15px;height:15px;fill:none;stroke:var(--text-light);stroke-width:1.8;}
+.nav-item:hover{color:var(--blue-mid);}
+.nav-item:hover .ni{background:rgba(30,77,255,0.12);}
+.nav-item:hover .ni svg{stroke:var(--blue-mid);}
+.nav-item.active{color:var(--blue-vivid);border-color:rgba(30,77,255,0.14);background:rgba(30,77,255,0.06);}
+.nav-item.active .ni{background:linear-gradient(135deg,var(--blue-vivid),var(--blue-mid));box-shadow:0 2px 9px var(--blue-glow);}
+.nav-item.active .ni svg{stroke:#fff;}
+
+/* ─ CALENDAR ACCORDION ──────────────────────────── */
+.cal-panel{margin-top:10px;border-top:1px solid var(--border-light);padding-top:10px;flex:1;overflow-y:auto;min-height:0;}
+.cal-panel::-webkit-scrollbar{width:3px;}
+.cal-panel::-webkit-scrollbar-thumb{background:var(--blue-light);border-radius:2px;}
+.cal-label{font-size:0.64rem;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text-light);padding:0 4px;margin-bottom:7px;display:flex;align-items:center;gap:5px;}
+.cal-label svg{width:12px;height:12px;fill:none;stroke:var(--text-light);stroke-width:2;}
+.cal-year-group{margin-bottom:5px;}
+.cal-year-btn{width:100%;display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border-radius:9px;cursor:pointer;user-select:none;background:rgba(30,77,255,0.05);border:1px solid rgba(30,77,255,0.08);font-size:0.78rem;font-weight:600;color:var(--text-mid);transition:var(--tr);}
+.cal-year-btn:hover{background:rgba(30,77,255,0.10);}
+.cal-year-btn.open{background:rgba(30,77,255,0.10);color:var(--blue-vivid);}
+.cal-year-btn .chevron{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;transition:var(--tr);flex-shrink:0;}
+.cal-year-btn.open .chevron{transform:rotate(180deg);}
+.cal-months{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:5px 1px 2px;}
+.cal-months.hidden{display:none;}
+.cal-m{padding:4px 2px;border-radius:7px;text-align:center;cursor:pointer;font-size:0.7rem;font-weight:500;color:var(--text-light);background:transparent;border:1px solid transparent;transition:var(--tr);user-select:none;}
+.cal-m:hover{background:rgba(30,77,255,0.08);color:var(--blue-mid);}
+.cal-m.active{background:var(--blue-vivid);color:#fff;font-weight:700;box-shadow:0 2px 7px var(--blue-glow);}
+
+.sidebar-tip{padding:11px 12px;background:linear-gradient(135deg,var(--blue-vivid),var(--blue-mid));border-radius:var(--radius-sm);color:#fff;font-size:0.68rem;line-height:1.5;box-shadow:0 3px 12px var(--blue-glow);flex-shrink:0;}
+.sidebar-tip strong{font-size:0.73rem;display:block;margin-bottom:2px;}
+
+/* ─ MAIN ─────────────────────────────────────────── */
+.main{flex:1;overflow-y:auto;padding:20px 22px;height:100vh;position:relative;z-index:5;}
+.main::-webkit-scrollbar{width:5px;}
+.main::-webkit-scrollbar-thumb{background:var(--blue-light);border-radius:3px;}
+
+.top-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+.theme-toggle {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border-radius: 40px;
+  padding: 8px 18px;
+  cursor: pointer;
+  border: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  transition: var(--tr);
+  color: var(--text-dark);
+}
+.theme-toggle:hover { background: var(--blue-vivid); color: white; }
+
+.tab-content{display:none;animation:fadeIn 0.25s ease;}
+.tab-content.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+.page-header{margin-bottom:16px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.page-title{font-size:1.45rem;font-weight:700;color:var(--text-dark);letter-spacing:-0.5px;}
+.page-title span{color:var(--blue-vivid);}
+.page-sub{font-size:0.76rem;color:var(--text-light);margin-top:2px;}
+
+/* ─ GLASS CARD ───────────────────────────────────── */
+.glass-card{background:var(--card-bg);backdrop-filter:blur(18px);border:1px solid var(--glass-border);border-radius:var(--radius);box-shadow:var(--glass-shadow);padding:16px 18px;transition:var(--tr);position:relative;z-index:5;}
+.glass-card:hover{box-shadow:0 10px 38px rgba(30,77,255,0.13);transform:translateY(-1px);}
+
+/* ─ SUMMARY CARDS ────────────────────────────────── */
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.summary-card{background:var(--card-bg);backdrop-filter:blur(18px);border:1px solid var(--glass-border);border-radius:var(--radius);box-shadow:var(--glass-shadow);padding:14px 16px;position:relative;overflow:hidden;transition:var(--tr);}
+.summary-card:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(30,77,255,0.13);}
+.summary-card.accent{background:linear-gradient(135deg,var(--blue-vivid),var(--blue-mid));color:#fff;border-color:transparent;}
+.summary-card.accent .card-label,.summary-card.accent .card-value{color:#fff;}
+.summary-card.accent .card-change{color:rgba(255,255,255,0.72);}
+.cib{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(30,77,255,0.1);margin-bottom:9px;}
+.summary-card.accent .cib{background:rgba(255,255,255,0.2);}
+.cib svg{width:15px;height:15px;fill:none;stroke:var(--blue-vivid);stroke-width:1.8;}
+.summary-card.accent .cib svg{stroke:#fff;}
+.card-label{font-size:0.68rem;font-weight:600;color:var(--text-light);text-transform:uppercase;letter-spacing:0.7px;margin-bottom:5px;}
+.card-value{font-size:1.25rem;font-weight:700;color:var(--text-dark);font-family:var(--mono);letter-spacing:-0.3px;}
+.card-change{font-size:0.68rem;color:var(--text-light);margin-top:4px;}
+.card-change.pos{color:#22c55e;}.card-change.neg{color:#ef4444;}
+
+/* ─ CHARTS ───────────────────────────────────────── */
+.charts-grid{display:grid;grid-template-columns:1.5fr 0.6fr;gap:12px;margin-bottom:12px;}
+.charts-row2{display:grid;grid-template-columns:1fr 1fr 0.65fr;gap:12px;}
+.chart-title{font-size:0.8rem;font-weight:700;color:var(--text-dark);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.chart-title::before{content:'';width:3px;height:13px;background:var(--blue-vivid);border-radius:2px;display:inline-block;}
+.chart-wrap{position:relative;height:158px;}
+
+/* ─ CATEGORY LIST ────────────────────────────────── */
+.category-list{display:flex;flex-direction:column;gap:7px;}
+.cat-row{display:flex;align-items:center;gap:8px;}
+.cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.cat-name{font-size:0.72rem;color:var(--text-mid);flex:1;font-weight:500;}
+.cat-bar-wrap{flex:2;height:4px;background:rgba(30,77,255,0.09);border-radius:3px;overflow:hidden;}
+.cat-bar{height:100%;border-radius:3px;transition:width 0.6s ease;}
+.cat-val{font-size:0.7rem;color:var(--text-dark);font-family:var(--mono);font-weight:500;min-width:58px;text-align:right;}
+
+/* ─ FORMS (com ajuste para texto escuro no dark mode) ────────────────────────── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-group{display:flex;flex-direction:column;gap:4px;position:relative;z-index:10;}
+.form-group.full{grid-column:span 2;}
+label{font-size:0.68rem;font-weight:600;color:var(--text-mid);text-transform:uppercase;letter-spacing:0.5px;}
+input,select,textarea{
+  background:var(--input-bg);
+  border:1.5px solid rgba(30,77,255,0.18);
+  border-radius:10px;
+  padding:8px 11px;
+  font-size:0.82rem;
+  font-family:var(--font);
+  color:var(--input-text);
+  outline:none;
+  transition:var(--tr);
+}
+input:focus,select:focus,textarea:focus{border-color:var(--blue-mid);box-shadow:0 0 0 3px rgba(30,77,255,0.09);}
+textarea{resize:vertical;min-height:56px;}
+
+/* ─ BUTTONS ──────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:10px;border:none;cursor:pointer;font-family:var(--font);font-size:0.82rem;font-weight:600;transition:var(--tr);}
+.btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;flex-shrink:0;}
+.btn-primary{background:linear-gradient(135deg,var(--blue-vivid),var(--blue-mid));color:#fff;box-shadow:0 3px 10px var(--blue-glow);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 5px 18px rgba(30,77,255,0.30);}
+.btn-ghost{background:rgba(30,77,255,0.08);color:var(--blue-vivid);border:1px solid rgba(30,77,255,0.18);}
+.btn-ghost:hover{background:rgba(30,77,255,0.14);}
+.btn-whatsapp{background:#25D366;color:#fff;box-shadow:0 2px 8px rgba(37,211,102,0.3);}
+.btn-whatsapp:hover{transform:translateY(-1px);background:#20bd5a;}
+.btn-danger{background:rgba(239,68,68,0.08);color:#ef4444;border:1px solid rgba(239,68,68,0.16);font-size:0.72rem;padding:4px 9px;border-radius:7px;}
+.btn-danger:hover{background:rgba(239,68,68,0.16);}
+
+/* ─ TABLE ────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text-light);padding:7px 11px;text-align:left;border-bottom:1px solid var(--border-light);}
+td{padding:9px 11px;font-size:0.8rem;color:var(--text-dark);border-bottom:1px solid rgba(30,77,255,0.04);vertical-align:middle;}
+tr:hover td{background:rgba(30,77,255,0.02);}
+tr:last-child td{border-bottom:none;}
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:18px;
+  font-size:0.66rem;
+  font-weight:700;
+  background:var(--badge-bg);
+  color:var(--badge-text);
+}
+.badge.green{background:rgba(34,197,94,0.1);color:#16a34a;}
+
+/* ─ REPORT ───────────────────────────────────────── */
+.report-section{margin-bottom:12px;}
+.report-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-light);font-size:0.8rem;}
+.report-row:last-child{border-bottom:none;}
+.report-label{color:var(--text-mid);}
+.report-val{font-family:var(--mono);font-weight:600;color:var(--text-dark);}
+.report-val.pos{color:#16a34a;}.report-val.neg{color:#dc2626;}
+.divider{height:1px;background:var(--border-light);margin:12px 0;}
+
+/* ─ INV CARDS ────────────────────────────────────── */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:12px;}
+.inv-card{background:var(--card-bg);backdrop-filter:blur(14px);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:13px 14px;transition:var(--tr);position:relative;overflow:hidden;}
+.inv-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(30,77,255,0.10);}
+.inv-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue-vivid),var(--blue-mid));}
+.inv-type{font-size:0.66rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue-vivid);margin-bottom:5px;}
+.inv-name{font-size:0.84rem;font-weight:700;color:var(--text-dark);margin-bottom:3px;}
+.inv-amount{font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--text-dark);margin-bottom:5px;}
+.inv-return{font-size:0.7rem;display:flex;align-items:center;gap:3px;}
+.inv-return.pos{color:#16a34a;}
+
+/* ─ EMPTY ────────────────────────────────────────── */
+.empty{text-align:center;padding:28px;color:var(--text-light);}
+.empty svg{width:32px;height:32px;fill:none;stroke:var(--text-light);stroke-width:1.5;opacity:0.35;margin-bottom:7px;display:block;margin-left:auto;margin-right:auto;}
+.empty p{font-size:0.8rem;}
+
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+.section-title{font-size:0.9rem;font-weight:700;color:var(--text-dark);}
+
+/* ─ TOAST ────────────────────────────────────────── */
+.toast{position:fixed;bottom:20px;right:20px;background:linear-gradient(135deg,var(--blue-vivid),var(--blue-mid));color:#fff;padding:10px 16px;border-radius:11px;font-size:0.8rem;font-weight:500;box-shadow:0 5px 20px rgba(30,77,255,0.26);z-index:1000;display:none;animation:slideUp 0.25s ease;}
+@keyframes slideUp{from{transform:translateY(14px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+</style>
+</head>
+<body class="dark">
+<!-- FUNDO ELEGANTE COM MÚLTIPLOS CÍRCULOS (visível em claro e escuro) -->
+<div class="circles-bg">
+  <div class="bg-gradient"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="circle"></div>
+  <div class="noise-texture"></div>
+</div>
+
+<div class="app">
+
+<!-- ═══ SIDEBAR ══════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 20.5 7 20.5 17 12 22 3.5 17 3.5 7"></polygon><line x1="12" y1="2" x2="12" y2="22"></line><line x1="3.5" y1="7" x2="20.5" y2="7"></line><line x1="3.5" y1="17" x2="20.5" y2="17"></line></svg></div>
+    <div class="logo-text">Fin<span>Flow</span></div>
+  </div>
+  <nav>
+    <div class="nav-item active" data-tab="home"><div class="ni"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg></div>Dashboard</div>
+    <div class="nav-item" data-tab="entradas"><div class="ni"><svg viewBox="0 0 24 24"><path d="M21 7H3a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"></path><circle cx="17" cy="13" r="1.5"></circle></svg></div>Entradas</div>
+    <div class="nav-item" data-tab="gastos"><div class="ni"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></div>Gastos</div>
+    <div class="nav-item" data-tab="investimentos"><div class="ni"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg></div>Investimentos</div>
+    <div class="nav-item" data-tab="relatorios"><div class="ni"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line><line x1="2" y1="20" x2="22" y2="20"></line></svg></div>Relatórios</div>
+  </nav>
+  <div class="cal-panel"><div class="cal-label"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>Período</div><div id="calAccordion"><div class="cal-year-group"><div class="cal-year-btn open"><span>2026</span><svg class="chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></div><div class="cal-months"><div class="cal-m">Jan</div><div class="cal-m">Fev</div><div class="cal-m">Mar</div><div class="cal-m">Abr</div><div class="cal-m">Mai</div><div class="cal-m">Jun</div><div class="cal-m">Jul</div><div class="cal-m">Ago</div><div class="cal-m active">Set</div><div class="cal-m">Out</div><div class="cal-m">Nov</div><div class="cal-m">Dez</div></div></div><div class="cal-year-group"><div class="cal-year-btn"><span>2027</span><svg class="chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></div><div class="cal-months hidden"><div class="cal-m">Jan</div><div class="cal-m">Fev</div><div class="cal-m">Mar</div><div class="cal-m">Abr</div><div class="cal-m">Mai</div><div class="cal-m">Jun</div><div class="cal-m">Jul</div><div class="cal-m">Ago</div><div class="cal-m">Set</div><div class="cal-m">Out</div><div class="cal-m">Nov</div><div class="cal-m">Dez</div></div></div><div class="cal-year-group"><div class="cal-year-btn"><span>2028</span><svg class="chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></div><div class="cal-months hidden"><div class="cal-m">Jan</div><div class="cal-m">Fev</div><div class="cal-m">Mar</div><div class="cal-m">Abr</div><div class="cal-m">Mai</div><div class="cal-m">Jun</div><div class="cal-m">Jul</div><div class="cal-m">Ago</div><div class="cal-m">Set</div><div class="cal-m">Out</div><div class="cal-m">Nov</div><div class="cal-m">Dez</div></div></div></div></div>
+  <div class="sidebar-tip"><strong>Dica do mês</strong>Mantenha gastos abaixo de 70% da renda para crescer seu patrimônio.</div>
+</aside>
+
+<!-- ═══ MAIN ══════════════════════════════════════════ -->
+<main class="main">
+  <div class="top-bar">
+    <div class="theme-toggle" id="themeToggle"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg> <span>Modo Claro</span></div>
+  </div>
+
+  <!-- HOME -->
+  <div class="tab-content active" id="tab-home">
+    <div class="page-header"><div><div class="page-title">Olá, <span id="greeting-month">Set 2026</span></div><div class="page-sub">Resumo financeiro do período selecionado</div></div><div id="sync-badge" style="font-size:0.72rem;font-family:var(--mono);color:#94a3b8;align-self:center;">○ Somente local (configure o Firebase)</div></div>
+    <div class="summary-grid">
+      <div class="summary-card accent"><div class="cib"><svg viewBox="0 0 24 24"><path d="M21 7H3a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"></path></svg></div><div class="card-label">Entradas</div><div class="card-value" id="sum-salary">R$ 0,00</div><div class="card-change">Total do mês</div></div>
+      <div class="summary-card"><div class="cib"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg></div><div class="card-label">Total Gasto</div><div class="card-value" id="sum-spent">R$ 0,00</div><div class="card-change" id="sum-spent-pct">0% da renda</div></div>
+      <div class="summary-card"><div class="cib"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg></div><div class="card-label">Investido</div><div class="card-value" id="sum-invested">R$ 0,00</div><div class="card-change pos">Patrimônio crescendo</div></div>
+      <div class="summary-card"><div class="cib"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div><div class="card-label">Saldo Restante</div><div class="card-value" id="sum-balance">R$ 0,00</div><div class="card-change pos" id="sum-balance-status">Saldo positivo</div></div>
+    </div>
+    <div class="charts-grid"><div class="glass-card"><div class="chart-title">Evolução Financeira</div><div class="chart-wrap"><canvas id="lineChart" width="300" height="158" style="display: block; box-sizing: border-box; height: 158px; width: 300px;"></canvas></div></div><div class="glass-card"><div class="chart-title">Distribuição</div><div class="chart-wrap"><canvas id="pieChart" width="300" height="158" style="display: block; box-sizing: border-box; height: 158px; width: 300px;"></canvas></div></div></div>
+    <div class="charts-row2"><div class="glass-card" style="grid-column:span 2"><div class="chart-title">Gastos por Categoria</div><div class="chart-wrap"><canvas id="barChart" width="86" height="158" style="display: block; box-sizing: border-box; height: 158px; width: 86px;"></canvas></div></div><div class="glass-card"><div class="chart-title">Categorias</div><div class="category-list" id="catList"><p style="color:var(--text-light);font-size:0.76rem;text-align:center;padding:14px 0">Sem gastos este mês</p></div></div></div>
+  </div>
+
+  <!-- ENTRADAS, GASTOS, INVESTIMENTOS, RELATÓRIOS (código enxuto mas completo) -->
+  <div class="tab-content" id="tab-entradas"><div class="page-header"><div><div class="page-title">Entradas</div><div class="page-sub">Salários, extras e bônus</div></div></div><div class="glass-card" style="margin-bottom:12px;"><div class="section-title" style="margin-bottom:10px;">Nova Entrada</div><div class="form-grid"><div class="form-group"><label>Valor (R$)</label><input type="number" id="e-valor" placeholder="0,00" step="0.01" min="0"></div><div class="form-group"><label>Data</label><input type="date" id="e-data"></div><div class="form-group"><label>Categoria</label><select id="e-cat"><option value="Salário">Salário</option><option value="Freelance">Freelance</option><option value="Bônus">Bônus</option><option value="Investimento">Rendimento</option><option value="Outros">Outros</option></select></div><div class="form-group"><label>Mês</label><select id="e-mes"><option value="2026-01">Jan 2026</option><option value="2026-02">Fev 2026</option><option value="2026-03">Mar 2026</option><option value="2026-04">Abr 2026</option><option value="2026-05">Mai 2026</option><option value="2026-06">Jun 2026</option><option value="2026-07">Jul 2026</option><option value="2026-08">Ago 2026</option><option value="2026-09">Set 2026</option><option value="2026-10">Out 2026</option><option value="2026-11">Nov 2026</option><option value="2026-12">Dez 2026</option><option value="2027-01">Jan 2027</option><option value="2027-02">Fev 2027</option><option value="2027-03">Mar 2027</option><option value="2027-04">Abr 2027</option><option value="2027-05">Mai 2027</option><option value="2027-06">Jun 2027</option><option value="2027-07">Jul 2027</option><option value="2027-08">Ago 2027</option><option value="2027-09">Set 2027</option><option value="2027-10">Out 2027</option><option value="2027-11">Nov 2027</option><option value="2027-12">Dez 2027</option><option value="2028-01">Jan 2028</option><option value="2028-02">Fev 2028</option><option value="2028-03">Mar 2028</option><option value="2028-04">Abr 2028</option><option value="2028-05">Mai 2028</option><option value="2028-06">Jun 2028</option><option value="2028-07">Jul 2028</option><option value="2028-08">Ago 2028</option><option value="2028-09">Set 2028</option><option value="2028-10">Out 2028</option><option value="2028-11">Nov 2028</option><option value="2028-12">Dez 2028</option></select></div><div class="form-group full"><label>Descrição</label><input type="text" id="e-desc" placeholder="Ex: Salário de Janeiro..."></div></div><div style="margin-top:10px;"><button class="btn btn-primary" onclick="addEntrada()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Adicionar Entrada</button></div></div><div class="glass-card"><div class="section-header"><div class="section-title">Histórico</div><span id="e-total-badge" style="font-family:var(--mono);font-weight:700;color:var(--blue-vivid);font-size:0.9rem;">Total: R$ 0,00</span></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Mês</th><th>Valor</th><th></th></tr></thead><tbody id="e-tbody"></tbody></table></div><div id="e-empty" class="empty" style="display: block;"><svg viewBox="0 0 24 24"><path d="M21 7H3a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path><line x1="2" y1="10" x2="22" y2="10"></line></svg><p>Nenhuma entrada registrada ainda.</p></div></div></div>
+  <div class="tab-content" id="tab-gastos"><div class="page-header"><div><div class="page-title">Gastos</div><div class="page-sub">Controle todas as suas despesas</div></div></div><div class="glass-card" style="margin-bottom:12px;"><div class="section-title" style="margin-bottom:10px;">Novo Gasto</div><div class="form-grid"><div class="form-group"><label>Valor (R$)</label><input type="number" id="g-valor" placeholder="0,00" step="0.01" min="0"></div><div class="form-group"><label>Data</label><input type="date" id="g-data"></div><div class="form-group"><label>Categoria</label><select id="g-cat"><option value="Alimentação">Alimentação</option><option value="Transporte">Transporte</option><option value="Moradia">Moradia</option><option value="Saúde">Saúde</option><option value="Lazer">Lazer</option><option value="Educação">Educação</option><option value="Vestuário">Vestuário</option><option value="Contas">Contas / Serviços</option><option value="Outros">Outros</option></select></div><div class="form-group"><label>Mês</label><select id="g-mes"><option value="2026-01">Jan 2026</option><option value="2026-02">Fev 2026</option><option value="2026-03">Mar 2026</option><option value="2026-04">Abr 2026</option><option value="2026-05">Mai 2026</option><option value="2026-06">Jun 2026</option><option value="2026-07">Jul 2026</option><option value="2026-08">Ago 2026</option><option value="2026-09">Set 2026</option><option value="2026-10">Out 2026</option><option value="2026-11">Nov 2026</option><option value="2026-12">Dez 2026</option><option value="2027-01">Jan 2027</option><option value="2027-02">Fev 2027</option><option value="2027-03">Mar 2027</option><option value="2027-04">Abr 2027</option><option value="2027-05">Mai 2027</option><option value="2027-06">Jun 2027</option><option value="2027-07">Jul 2027</option><option value="2027-08">Ago 2027</option><option value="2027-09">Set 2027</option><option value="2027-10">Out 2027</option><option value="2027-11">Nov 2027</option><option value="2027-12">Dez 2027</option><option value="2028-01">Jan 2028</option><option value="2028-02">Fev 2028</option><option value="2028-03">Mar 2028</option><option value="2028-04">Abr 2028</option><option value="2028-05">Mai 2028</option><option value="2028-06">Jun 2028</option><option value="2028-07">Jul 2028</option><option value="2028-08">Ago 2028</option><option value="2028-09">Set 2028</option><option value="2028-10">Out 2028</option><option value="2028-11">Nov 2028</option><option value="2028-12">Dez 2028</option></select></div><div class="form-group full"><label>Descrição</label><input type="text" id="g-desc" placeholder="Ex: Supermercado, Uber..."></div></div><div style="margin-top:10px;"><button class="btn btn-primary" onclick="addGasto()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Registrar Gasto</button></div></div><div class="glass-card"><div class="section-header"><div class="section-title">Histórico</div><span id="g-total-badge" style="font-family:var(--mono);font-weight:700;color:#dc2626;font-size:0.9rem;">Total: R$ 0,00</span></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Mês</th><th>Valor</th><th></th></tr></thead><tbody id="g-tbody"></tbody></table></div><div id="g-empty" class="empty" style="display: block;"><svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg><p>Nenhum gasto registrado.</p></div></div></div>
+  <div class="tab-content" id="tab-investimentos"><div class="page-header"><div><div class="page-title">Investimentos</div><div class="page-sub">Acompanhe seu patrimônio</div></div></div><div class="glass-card" style="margin-bottom:12px;"><div class="section-title" style="margin-bottom:10px;">Novo Investimento</div><div class="form-grid"><div class="form-group"><label>Tipo</label><select id="i-tipo"><option value="Ações">Ações</option><option value="Renda Fixa">Renda Fixa</option><option value="Cripto">Criptomoeda</option><option value="Fundos">Fundos</option><option value="Tesouro">Tesouro Direto</option><option value="FIIs">FIIs / Imóveis</option><option value="Outros">Outros</option></select></div><div class="form-group"><label>Nome / Ticker</label><input type="text" id="i-nome" placeholder="Ex: PETR4, CDB..."></div><div class="form-group"><label>Valor (R$)</label><input type="number" id="i-valor" placeholder="0,00" step="0.01" min="0"></div><div class="form-group"><label>Data</label><input type="date" id="i-data"></div><div class="form-group"><label>Mês</label><select id="i-mes"><option value="2026-01">Jan 2026</option><option value="2026-02">Fev 2026</option><option value="2026-03">Mar 2026</option><option value="2026-04">Abr 2026</option><option value="2026-05">Mai 2026</option><option value="2026-06">Jun 2026</option><option value="2026-07">Jul 2026</option><option value="2026-08">Ago 2026</option><option value="2026-09">Set 2026</option><option value="2026-10">Out 2026</option><option value="2026-11">Nov 2026</option><option value="2026-12">Dez 2026</option><option value="2027-01">Jan 2027</option><option value="2027-02">Fev 2027</option><option value="2027-03">Mar 2027</option><option value="2027-04">Abr 2027</option><option value="2027-05">Mai 2027</option><option value="2027-06">Jun 2027</option><option value="2027-07">Jul 2027</option><option value="2027-08">Ago 2027</option><option value="2027-09">Set 2027</option><option value="2027-10">Out 2027</option><option value="2027-11">Nov 2027</option><option value="2027-12">Dez 2027</option><option value="2028-01">Jan 2028</option><option value="2028-02">Fev 2028</option><option value="2028-03">Mar 2028</option><option value="2028-04">Abr 2028</option><option value="2028-05">Mai 2028</option><option value="2028-06">Jun 2028</option><option value="2028-07">Jul 2028</option><option value="2028-08">Ago 2028</option><option value="2028-09">Set 2028</option><option value="2028-10">Out 2028</option><option value="2028-11">Nov 2028</option><option value="2028-12">Dez 2028</option></select></div><div class="form-group"><label>Retorno Estimado (%)</label><input type="number" id="i-retorno" placeholder="Ex: 12.5" step="0.1"></div></div><div style="margin-top:10px;"><button class="btn btn-primary" onclick="addInvestimento()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Registrar Investimento</button></div></div><div class="summary-grid" style="grid-template-columns:repeat(3,1fr);"><div class="summary-card accent"><div class="cib"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></div><div class="card-label">Total Investido</div><div class="card-value" id="i-total-val">R$ 0,00</div><div class="card-change">Patrimônio acumulado</div></div><div class="summary-card"><div class="cib"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg></div><div class="card-label">Ativos</div><div class="card-value" id="i-count-val">0</div><div class="card-change">Diversificação</div></div><div class="summary-card"><div class="cib"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg></div><div class="card-label">Retorno Estimado</div><div class="card-value" id="i-ret-val">R$ 0,00</div><div class="card-change pos">Projeção anual</div></div></div><div class="glass-card" style="margin-top:12px;"><div class="chart-title">Investimentos por Mês</div><div class="chart-wrap"><canvas id="invChart" height="158" style="display: block; box-sizing: border-box; height: 158px; width: 219px;" width="219"></canvas></div></div><div class="inv-grid" id="inv-cards"></div><div id="i-empty" class="empty" style="display: block;"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg><p>Nenhum investimento registrado.</p></div></div>
+  <div class="tab-content" id="tab-relatorios"><div class="page-header"><div><div class="page-title">Relatórios</div><div class="page-sub">Visão completa da saúde financeira</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-primary" onclick="downloadReport()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>Exportar HTML</button><button class="btn btn-whatsapp" onclick="sendWhatsAppReport()"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12.032 2.001c-5.523 0-10 4.477-10 10 0 1.752.454 3.478 1.318 5.011l-1.293 3.945 4.064-1.257c1.477.858 3.156 1.311 4.911 1.311 5.523 0 10-4.477 10-10s-4.477-10-10-10z"></path></svg>WhatsApp</button><button class="btn btn-ghost" onclick="printReport()"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>Imprimir</button></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" id="report-content"><div class="glass-card"><div class="chart-title">Resumo do Mês</div><div class="report-section" id="rep-summary"><div class="report-row"><span class="report-label">Período</span><span class="report-val">Set 2026</span></div><div class="report-row"><span class="report-label">Entradas</span><span class="report-val pos">R$ 0,00</span></div><div class="report-row"><span class="report-label">Gastos</span><span class="report-val neg">R$ 0,00</span></div><div class="report-row"><span class="report-label">Investido</span><span class="report-val" style="color:var(--blue-vivid)">R$ 0,00</span></div><div class="divider"></div><div class="report-row"><span class="report-label" style="font-weight:700">Saldo Final</span><span class="report-val pos" style="font-size:0.95rem;">R$ 0,00</span></div></div></div><div class="glass-card"><div class="chart-title">Gastos por Categoria</div><div class="report-section" id="rep-cats"><p style="color:var(--text-light);font-size:0.78rem">Sem gastos neste mês.</p></div></div><div class="glass-card"><div class="chart-title">Entradas</div><div class="table-wrap" id="rep-entradas-table"><p style="color:var(--text-light);font-size:0.78rem">Sem entradas.</p></div></div><div class="glass-card"><div class="chart-title">Gastos</div><div class="table-wrap" id="rep-gastos-table"><p style="color:var(--text-light);font-size:0.78rem">Sem gastos.</p></div></div></div><div class="glass-card" style="margin-top:12px;"><div class="chart-title">Balanço Patrimonial (2026)</div><div class="chart-wrap"><canvas id="reportChart" height="158" style="display: block; box-sizing: border-box; height: 158px; width: 219px;" width="219"></canvas></div></div></div>
+</main>
+</div>
+<div class="toast" id="toast">Salvo!</div>
+
+<script>
+const MONTHS=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MONTHS_FULL = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const YEARS=[2026,2027,2028];
+let selectedMonthKey='';
+let entradas=JSON.parse(localStorage.getItem('ff_entradas')||'[]');
+let gastos=JSON.parse(localStorage.getItem('ff_gastos')||'[]');
+let investimentos=JSON.parse(localStorage.getItem('ff_investimentos')||'[]');
+
+/* ===== SINCRONIZAÇÃO EM TEMPO REAL (Firebase Firestore) =====
+   Preencha firebaseConfig abaixo com os dados do SEU projeto Firebase
+   (Console Firebase > Configurações do projeto > Seus apps > SDK setup).
+   Enquanto estiver com os valores de exemplo ("SUA_API_KEY..."), o app
+   funciona normalmente, mas só salva localmente (localStorage) neste navegador. */
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY_AQUI",
+  authDomain: "SEU_PROJETO.firebaseapp.com",
+  projectId: "SEU_PROJETO",
+  storageBucket: "SEU_PROJETO.appspot.com",
+  messagingSenderId: "SEU_SENDER_ID",
+  appId: "SEU_APP_ID"
+};
+// Identificador do "quarto" compartilhado — todo mundo que acessa o site com o
+// mesmo ROOM_ID vê e edita os mesmos dados em tempo real.
+const ROOM_ID = "principal";
+
+let fbDb = null;
+let cloudReady = false;
+let applyingRemote = false; // evita que o listener sobrescreva o que o próprio usuário está digitando
+
+function initCloudSync(){
+  if(firebaseConfig.apiKey.startsWith("SUA_API_KEY")){
+    console.warn("FinFlow: firebaseConfig não configurado — rodando apenas com localStorage (sem tempo real).");
+    updateSyncBadge('offline');
+    return;
+  }
+  try{
+    firebase.initializeApp(firebaseConfig);
+    fbDb = firebase.firestore();
+    cloudReady = true;
+    const docRef = fbDb.collection('finflow_rooms').doc(ROOM_ID);
+    docRef.onSnapshot(snap=>{
+      updateSyncBadge('online');
+      if(!snap.exists){ return; } // ainda não há dados na nuvem — mantém o que já está local
+      const data = snap.data();
+      applyingRemote = true;
+      entradas = data.entradas || [];
+      gastos = data.gastos || [];
+      investimentos = data.investimentos || [];
+      localStorage.setItem('ff_entradas', JSON.stringify(entradas));
+      localStorage.setItem('ff_gastos', JSON.stringify(gastos));
+      localStorage.setItem('ff_investimentos', JSON.stringify(investimentos));
+      renderEntradas(); renderGastos(); updateDashboard();
+      applyingRemote = false;
+    }, err=>{
+      console.error('FinFlow: erro de sincronização', err);
+      updateSyncBadge('erro');
+    });
+  }catch(e){
+    console.error('FinFlow: falha ao iniciar Firebase', e);
+    updateSyncBadge('erro');
+  }
+}
+function updateSyncBadge(state){
+  const el = document.getElementById('sync-badge');
+  if(!el) return;
+  if(state==='online'){ el.textContent='● Sincronizado em tempo real'; el.style.color='#16a34a'; }
+  else if(state==='offline'){ el.textContent='○ Somente local (configure o Firebase)'; el.style.color='#94a3b8'; }
+  else { el.textContent='● Erro de sincronização'; el.style.color='#dc2626'; }
+}
+function pushToCloud(){
+  if(!cloudReady || applyingRemote) return;
+  fbDb.collection('finflow_rooms').doc(ROOM_ID).set({
+    entradas, gastos, investimentos,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(e=>console.error('FinFlow: erro ao salvar na nuvem', e));
+}
+/* ===== FIM SINCRONIZAÇÃO ===== */
+const CAT_COLORS={'Alimentação':'#1E4DFF','Transporte':'#4F7BFF','Moradia':'#7B9FFF','Saúde':'#A0B8FF','Lazer':'#22c55e','Educação':'#f59e0b','Vestuário':'#ec4899','Contas':'#8b5cf6','Outros':'#64748b'};
+
+function save(){localStorage.setItem('ff_entradas',JSON.stringify(entradas));localStorage.setItem('ff_gastos',JSON.stringify(gastos));localStorage.setItem('ff_investimentos',JSON.stringify(investimentos));pushToCloud();}
+function fmt(n){return 'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function monthKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`;}
+function getMonthNameFromKey(key){const[sy,sm]=key.split('-');return MONTHS_FULL[parseInt(sm)-1]+' '+sy;}
+
+function buildCalendar(){
+  const acc=document.getElementById('calAccordion'); acc.innerHTML='';
+  const now=new Date(); const curKey=monthKey(now.getFullYear(),now.getMonth());
+  if(!selectedMonthKey)selectedMonthKey=curKey;
+  YEARS.forEach(y=>{
+    const isNow=(y===now.getFullYear()); const hasActive=MONTHS.some((_,mi)=>monthKey(y,mi)===selectedMonthKey);
+    const group=document.createElement('div');group.className='cal-year-group';
+    const btn=document.createElement('div'); btn.className='cal-year-btn'+(isNow||hasActive?' open':'');
+    btn.innerHTML=`<span>${y}</span><svg class="chevron" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>`;
+    const grid=document.createElement('div'); grid.className='cal-months'+(isNow||hasActive?'':' hidden');
+    MONTHS.forEach((m,mi)=>{ const k=monthKey(y,mi); const el=document.createElement('div'); el.className='cal-m'+(k===selectedMonthKey?' active':''); el.textContent=m; el.onclick=()=>{selectedMonthKey=k;buildCalendar();updateDashboard();updateReport();}; grid.appendChild(el); });
+    btn.onclick=()=>{const o=btn.classList.contains('open');btn.classList.toggle('open',!o);grid.classList.toggle('hidden',o);};
+    group.appendChild(btn); group.appendChild(grid); acc.appendChild(group);
+  });
+}
+function populateMonthSelects(){ ['e-mes','g-mes','i-mes'].forEach(id=>{ const sel=document.getElementById(id); if(sel){ sel.innerHTML=''; YEARS.forEach(y=>MONTHS.forEach((m,mi)=>{ const k=monthKey(y,mi); const opt=document.createElement('option'); opt.value=k; opt.textContent=`${m} ${y}`; if(k===selectedMonthKey) opt.selected=true; sel.appendChild(opt); })); } }); }
+
+let lineChart,pieChart,barChart,invChart,reportChart;
+function dc(c){if(c){try{c.destroy();}catch(e){}}}
+const cD={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'Sora',size:10},color:'#3a4a8a',boxWidth:10}}}};
+
+function buildCharts(){
+  dc(lineChart);dc(pieChart);dc(barChart);dc(invChart);dc(reportChart);
+  const[sy,sms]=selectedMonthKey.split('-');const sm=parseInt(sms)-1;
+  const lbs=[],iD=[],sD=[],vD=[];
+  for(let i=5;i>=0;i--){let m=sm-i,y=parseInt(sy);while(m<0){m+=12;y--;}const k=monthKey(y,m);
+    lbs.push(MONTHS[m]+' '+y); iD.push(entradas.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0));
+    sD.push(gastos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0)); vD.push(investimentos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0));
+  }
+  lineChart=new Chart(document.getElementById('lineChart'),{type:'line',data:{labels:lbs,datasets:[{label:'Entradas',data:iD,borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,0.07)',tension:0.4,fill:true,pointBackgroundColor:'#22c55e',pointRadius:3},{label:'Gastos',data:sD,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,0.07)',tension:0.4,fill:true,pointBackgroundColor:'#ef4444',pointRadius:3},{label:'Invest.',data:vD,borderColor:'#1E4DFF',backgroundColor:'rgba(30,77,255,0.07)',tension:0.4,fill:true,pointBackgroundColor:'#1E4DFF',pointRadius:3}]},options:{...cD,scales:{x:{grid:{color:'rgba(30,77,255,0.05)'},ticks:{color:'#8090c0',font:{family:'Sora',size:9}}},y:{grid:{color:'rgba(30,77,255,0.05)'},ticks:{color:'#8090c0',font:{family:'Sora',size:9},callback:v=>'R$'+(v/1000).toFixed(0)+'k'}}}}});
+  const cats={}; gastos.filter(x=>x.mes===selectedMonthKey).forEach(g=>{cats[g.cat]=(cats[g.cat]||0)+g.valor;});
+  const cL=Object.keys(cats),cV=Object.values(cats),cC=cL.map(l=>CAT_COLORS[l]||'#999');
+  pieChart=new Chart(document.getElementById('pieChart'),{type:'doughnut',data:{labels:cL.length?cL:['Sem dados'],datasets:[{data:cV.length?cV:[1],backgroundColor:cC.length?cC:['#e0e0e0'],borderWidth:0}]},options:{...cD,cutout:'68%'}});
+  barChart=new Chart(document.getElementById('barChart'),{type:'bar',data:{labels:cL.length?cL:['Sem dados'],datasets:[{label:'Gastos',data:cV.length?cV:[0],backgroundColor:cC.length?cC:['#e0e0e0'],borderRadius:7,borderSkipped:false}]},options:{...cD,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8090c0',font:{family:'Sora',size:9}}},y:{grid:{color:'rgba(30,77,255,0.05)'},ticks:{color:'#8090c0',font:{family:'Sora',size:9},callback:v=>'R$'+v}}}}});
+  invChart=new Chart(document.getElementById('invChart'),{type:'bar',data:{labels:lbs,datasets:[{label:'Investido',data:vD,backgroundColor:'rgba(30,77,255,0.65)',borderRadius:7}]},options:{...cD,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8090c0',font:{family:'Sora',size:9}}},y:{grid:{color:'rgba(30,77,255,0.05)'},ticks:{color:'#8090c0',font:{family:'Sora',size:9}}}}}});
+  const aK=[]; YEARS.forEach(y=>MONTHS.forEach((_,mi)=>aK.push(monthKey(y,mi))));
+  const rL=aK.slice(0,12).map(k=>{const[y,m]=k.split('-');return MONTHS[parseInt(m)-1]+' '+y;});
+  const rI=aK.slice(0,12).map(k=>entradas.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0));
+  const rS=aK.slice(0,12).map(k=>gastos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0));
+  reportChart=new Chart(document.getElementById('reportChart'),{type:'bar',data:{labels:rL,datasets:[{label:'Entradas',data:rI,backgroundColor:'rgba(34,197,94,0.7)',borderRadius:5},{label:'Gastos',data:rS,backgroundColor:'rgba(239,68,68,0.7)',borderRadius:5}]},options:{...cD,scales:{x:{grid:{display:false},ticks:{color:'#8090c0',font:{family:'Sora',size:9}}},y:{grid:{color:'rgba(30,77,255,0.05)'},ticks:{color:'#8090c0',font:{family:'Sora',size:9}}}}}});
+}
+
+function updateDashboard(){
+  const k=selectedMonthKey;const[sy,sm]=k.split('-'); document.getElementById('greeting-month').textContent=MONTHS[parseInt(sm)-1]+' '+sy;
+  const income=entradas.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0);
+  const spent=gastos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0);
+  const inv=investimentos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0);
+  const bal=income-spent-inv;
+  document.getElementById('sum-salary').textContent=fmt(income);
+  document.getElementById('sum-spent').textContent=fmt(spent);
+  document.getElementById('sum-invested').textContent=fmt(inv);
+  document.getElementById('sum-balance').textContent=fmt(bal);
+  const pct=income>0?((spent/income)*100).toFixed(1):0;
+  document.getElementById('sum-spent-pct').textContent=`${pct}% da renda`;
+  const bs=document.getElementById('sum-balance-status'); bs.textContent=bal>=0?'Saldo positivo':'Saldo negativo'; bs.className='card-change '+(bal>=0?'pos':'neg');
+  const cats={}; gastos.filter(x=>x.mes===k).forEach(g=>{cats[g.cat]=(cats[g.cat]||0)+g.valor;});
+  const total=Object.values(cats).reduce((a,b)=>a+b,0);
+  const cl=document.getElementById('catList'); cl.innerHTML='';
+  if(!Object.keys(cats).length){cl.innerHTML='<p style="color:var(--text-light);font-size:0.76rem;text-align:center;padding:14px 0">Sem gastos este mês</p>';}
+  else{Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([cat,val])=>{const p=total>0?(val/total*100).toFixed(0):0;cl.innerHTML+=`<div class="cat-row"><div class="cat-dot" style="background:${CAT_COLORS[cat]||'#999'}"></div><div class="cat-name">${cat}</div><div class="cat-bar-wrap"><div class="cat-bar" style="width:${p}%;background:${CAT_COLORS[cat]||'#999'}"></div></div><div class="cat-val">${fmt(val)}</div></div>`;});}
+  buildCharts(); updateInvestimentos(); updateReport();
+}
+function renderEntradas(){ const tb=document.getElementById('e-tbody'),em=document.getElementById('e-empty'); tb.innerHTML=''; if(!entradas.length){em.style.display='block';return;}em.style.display='none'; entradas.forEach((e,i)=>{const[y,m]=e.mes.split('-'); tb.innerHTML+=`<tr><td>${e.data}</td><td><span class="badge green">${e.cat}</span></td><td>${e.desc}</td><td>${MONTHS[parseInt(m)-1]} ${y}</td><td style="font-family:var(--mono);font-weight:600;color:#16a34a;">${fmt(e.valor)}</td><td><button class="btn btn-danger" onclick="delEntrada(${i})"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`;}); document.getElementById('e-total-badge').textContent='Total: '+fmt(entradas.reduce((a,b)=>a+b.valor,0)); }
+function addEntrada(){ const v=parseFloat(document.getElementById('e-valor').value),d=document.getElementById('e-data').value; if(!v||v<=0){showToast('Informe um valor válido');return;}if(!d){showToast('Informe a data');return;} entradas.push({valor:v,data:d,cat:document.getElementById('e-cat').value,mes:document.getElementById('e-mes').value,desc:document.getElementById('e-desc').value}); entradas.sort((a,b)=>b.data.localeCompare(a.data)); save(); renderEntradas(); updateDashboard(); document.getElementById('e-valor').value=''; document.getElementById('e-desc').value=''; showToast('Entrada adicionada!'); }
+function delEntrada(i){entradas.splice(i,1);save();renderEntradas();updateDashboard();}
+function renderGastos(){ const tb=document.getElementById('g-tbody'),em=document.getElementById('g-empty'); tb.innerHTML=''; if(!gastos.length){em.style.display='block';return;}em.style.display='none'; gastos.forEach((g,i)=>{const[y,m]=g.mes.split('-'); tb.innerHTML+=`<tr><td>${g.data}</td><td><span class="badge">${g.cat}</span></td><td>${g.desc}</td><td>${MONTHS[parseInt(m)-1]} ${y}</td><td style="font-family:var(--mono);font-weight:600;color:#dc2626;">${fmt(g.valor)}</td><td><button class="btn btn-danger" onclick="delGasto(${i})"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button></td></tr>`;}); document.getElementById('g-total-badge').textContent='Total: '+fmt(gastos.reduce((a,b)=>a+b.valor,0)); }
+function addGasto(){ const v=parseFloat(document.getElementById('g-valor').value),d=document.getElementById('g-data').value; if(!v||v<=0){showToast('Informe um valor válido');return;}if(!d){showToast('Informe a data');return;} gastos.push({valor:v,data:d,cat:document.getElementById('g-cat').value,mes:document.getElementById('g-mes').value,desc:document.getElementById('g-desc').value}); gastos.sort((a,b)=>b.data.localeCompare(a.data)); save(); renderGastos(); updateDashboard(); document.getElementById('g-valor').value=''; document.getElementById('g-desc').value=''; showToast('Gasto registrado!'); }
+function delGasto(i){gastos.splice(i,1);save();renderGastos();updateDashboard();}
+function updateInvestimentos(){ const total=investimentos.reduce((a,b)=>a+b.valor,0); const estRet=investimentos.reduce((a,b)=>a+(b.valor*(b.retorno||0)/100),0); document.getElementById('i-total-val').textContent=fmt(total); document.getElementById('i-count-val').textContent=investimentos.length; document.getElementById('i-ret-val').textContent=fmt(estRet); const cards=document.getElementById('inv-cards'),empty=document.getElementById('i-empty'); cards.innerHTML=''; if(!investimentos.length){empty.style.display='block';return;}empty.style.display='none'; investimentos.forEach((inv,i)=>{const[y,m]=inv.mes.split('-'); const ret=(inv.retorno||0)*inv.valor/100; cards.innerHTML+=`<div class="inv-card"><div class="inv-type">${inv.tipo}</div><div class="inv-name">${inv.nome||'—'}</div><div class="inv-amount">${fmt(inv.valor)}</div><div class="inv-return pos">+${fmt(ret)} / ano (${inv.retorno||0}%)</div><div style="margin-top:5px;font-size:0.68rem;color:var(--text-light);">${MONTHS[parseInt(m)-1]} ${y} · ${inv.data}</div><button class="btn btn-danger" style="margin-top:8px;width:100%;justify-content:center;" onclick="delInvestimento(${i})"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Remover</button></div>`;}); }
+function addInvestimento(){ const v=parseFloat(document.getElementById('i-valor').value),d=document.getElementById('i-data').value; if(!v||v<=0){showToast('Informe um valor válido');return;}if(!d){showToast('Informe a data');return;} investimentos.push({tipo:document.getElementById('i-tipo').value,nome:document.getElementById('i-nome').value,valor:v,data:d,mes:document.getElementById('i-mes').value,retorno:parseFloat(document.getElementById('i-retorno').value)||0}); save(); updateInvestimentos(); updateDashboard(); document.getElementById('i-valor').value=''; document.getElementById('i-nome').value=''; document.getElementById('i-retorno').value=''; showToast('Investimento registrado!'); }
+function delInvestimento(i){investimentos.splice(i,1);save();updateInvestimentos();updateDashboard();}
+function updateReport(){ const k=selectedMonthKey; const[sy,sm]=k.split('-'); const mN=MONTHS[parseInt(sm)-1]+' '+sy; const income=entradas.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0); const spent=gastos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0); const inv=investimentos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0); const bal=income-spent-inv; document.getElementById('rep-summary').innerHTML=`<div class="report-row"><span class="report-label">Período</span><span class="report-val">${mN}</span></div><div class="report-row"><span class="report-label">Entradas</span><span class="report-val pos">${fmt(income)}</span></div><div class="report-row"><span class="report-label">Gastos</span><span class="report-val neg">${fmt(spent)}</span></div><div class="report-row"><span class="report-label">Investido</span><span class="report-val" style="color:var(--blue-vivid)">${fmt(inv)}</span></div><div class="divider"></div><div class="report-row"><span class="report-label" style="font-weight:700">Saldo Final</span><span class="report-val ${bal>=0?'pos':'neg'}" style="font-size:0.95rem;">${fmt(bal)}</span></div>`; const cats={}; gastos.filter(x=>x.mes===k).forEach(g=>{cats[g.cat]=(cats[g.cat]||0)+g.valor;}); const tC=Object.values(cats).reduce((a,b)=>a+b,0); let ch=''; Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([cat,val])=>{const p=tC>0?(val/tC*100).toFixed(1):0;ch+=`<div class="report-row"><span class="report-label">${cat}</span><span class="report-val">${fmt(val)} <span style="color:var(--text-light);font-size:0.68rem;">(${p}%)</span></span></div>`;}); document.getElementById('rep-cats').innerHTML=ch||'<p style="color:var(--text-light);font-size:0.78rem">Sem gastos neste mês.</p>'; const mE=entradas.filter(x=>x.mes===k); let eH=mE.length?'<table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>':'<p style="color:var(--text-light);font-size:0.78rem">Sem entradas.</p>'; mE.forEach(e=>{eH+=`<tr><td>${e.data}</td><td>${e.cat}</td><td>${e.desc}</td><td style="font-family:var(--mono);color:#16a34a;">${fmt(e.valor)}</td></tr>`;}); if(mE.length)eH+='</tbody></table>'; document.getElementById('rep-entradas-table').innerHTML=eH; const mG=gastos.filter(x=>x.mes===k); let gH=mG.length?'<table><thead><tr><th>Data</th><th>Categoria</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>':'<p style="color:var(--text-light);font-size:0.78rem">Sem gastos.</p>'; mG.forEach(g=>{gH+=`<tr><td>${g.data}</td><td>${g.cat}</td><td>${g.desc}</td><td style="font-family:var(--mono);color:#dc2626;">${fmt(g.valor)}</td></tr>`;}); if(mG.length)gH+='</tbody></table>'; document.getElementById('rep-gastos-table').innerHTML=gH; }
+function downloadReport(){ const[sy,sm]=selectedMonthKey.split('-'); const mN=MONTHS[parseInt(sm)-1]+' '+sy; const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório ${mN}</title><style>body{font-family:sans-serif;padding:30px;color:#333;}table{width:100%;border-collapse:collapse;}th,td{padding:8px 12px;border:1px solid #eee;text-align:left;}th{background:#f5f5f5;}</style></head><body><h1>Relatório Financeiro — ${mN}</h1>${document.getElementById('report-content').innerHTML}</body></html>`; const a=document.createElement('a'); a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html); a.download=`relatorio-${selectedMonthKey}.html`; a.click(); showToast('Relatório exportado!'); }
+function sendWhatsAppReport(){ const k=selectedMonthKey; const monthName=getMonthNameFromKey(k); const inc=entradas.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0); const exp=gastos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0); const inv=investimentos.filter(x=>x.mes===k).reduce((a,b)=>a+b.valor,0); const bal=inc-exp-inv; const msg=`📊 *FinFlow - Relatório Financeiro* 📊\n\n📅 *Período:* ${monthName}\n\n💰 *Entradas:* ${fmt(inc)}\n💸 *Gastos:* ${fmt(exp)}\n📈 *Investido:* ${fmt(inv)}\n⚖️ *Saldo Final:* ${fmt(bal)}\n\n🔹 *% Gastos/Receita:* ${inc>0?((exp/inc)*100).toFixed(1):0}%\n\n📌 *Resumo:* ${bal>=0?'Saldo positivo! Continue assim 🚀':'Atenção: saldo negativo. Reveja seus gastos ⚠️'}\n\n---\nFinFlow - Controle financeiro inteligente`; window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank'); showToast('WhatsApp aberto!'); }
+function printReport(){window.print();}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>{t.style.display='none';},2300);}
+document.querySelectorAll('.nav-item').forEach(item=>{ item.addEventListener('click',()=>{ document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active')); item.classList.add('active'); document.getElementById('tab-'+item.dataset.tab).classList.add('active'); if(item.dataset.tab==='relatorios')updateReport(); }); });
+const themeBtn=document.getElementById('themeToggle'); themeBtn.addEventListener('click',()=>{ document.body.classList.toggle('dark'); const span=themeBtn.querySelector('span'); span.innerText=document.body.classList.contains('dark')?'Modo Claro':'Modo Escuro'; });
+const today=new Date().toISOString().split('T')[0];
+document.getElementById('e-data').value=today; document.getElementById('g-data').value=today; document.getElementById('i-data').value=today;
+buildCalendar(); populateMonthSelects(); renderEntradas(); renderGastos(); updateDashboard();
+initCloudSync();
+</script>
+
+</body></html>
